@@ -96,8 +96,14 @@ impl<C: CurveAffine> Proof<C> {
 
                 // Feed L and R into the cloned transcript.
                 // We expect these to not be points at infinity due to the randomness.
-                transcript.absorb_point(&l).ok();
-                transcript.absorb_point(&r).ok();
+                transcript
+                    .absorb_point(&l)
+                    .map_err(|_| return Error::SamplingError)
+                    .ok();
+                transcript
+                    .absorb_point(&r)
+                    .map_err(|_| return Error::SamplingError)
+                    .ok();
 
                 // ... and get the squared challenge.
                 let challenge_sq_packed = transcript.squeeze().get_lower_128();
@@ -121,8 +127,14 @@ impl<C: CurveAffine> Proof<C> {
             let challenge_sq = challenge.square();
 
             // Feed L and R into the real transcript
-            transcript.absorb_point(&l).ok();
-            transcript.absorb_point(&r).ok();
+            transcript
+                .absorb_point(&l)
+                .map_err(|_| return Error::SamplingError)
+                .ok();
+            transcript
+                .absorb_point(&r)
+                .map_err(|_| return Error::SamplingError)
+                .ok();
 
             // And obtain the challenge, even though we already have it, since
             // squeezing affects the transcript.
@@ -168,7 +180,10 @@ impl<C: CurveAffine> Proof<C> {
         let delta = best_multiexp(&[d, d * &b, s], &[g, u, params.h]).to_affine();
 
         // Feed delta into the transcript
-        transcript.absorb_point(&delta).ok();
+        transcript
+            .absorb_point(&delta)
+            .map_err(|_| return Error::SamplingError)
+            .ok();
 
         // Obtain the challenge c.
         let c_packed = transcript.squeeze().get_lower_128();

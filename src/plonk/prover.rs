@@ -105,7 +105,10 @@ impl<C: CurveAffine> Proof<C> {
         drop(aux_commitments_projective);
 
         for commitment in &aux_commitments {
-            transcript.absorb_point(commitment).ok();
+            transcript
+                .absorb_point(commitment)
+                .map_err(|_| return Error::TranscriptError)
+                .ok();
         }
 
         let aux_polys: Vec<_> = aux
@@ -143,7 +146,10 @@ impl<C: CurveAffine> Proof<C> {
         drop(advice_commitments_projective);
 
         for commitment in &advice_commitments {
-            transcript.absorb_point(commitment).ok();
+            transcript
+                .absorb_point(commitment)
+                .map_err(|_| return Error::TranscriptError)
+                .ok();
         }
 
         let advice_polys: Vec<_> = witness
@@ -277,7 +283,10 @@ impl<C: CurveAffine> Proof<C> {
 
         // Hash each permutation product commitment
         for c in &permutation_product_commitments {
-            transcript.absorb_point(c).ok();
+            transcript
+                .absorb_point(c)
+                .map_err(|_| return Error::TranscriptError)
+                .ok();
         }
 
         // Obtain challenge for keeping all separate gates linearly independent
@@ -385,7 +394,10 @@ impl<C: CurveAffine> Proof<C> {
 
         // Hash each h(X) piece
         for c in h_commitments.iter() {
-            transcript.absorb_point(c).ok();
+            transcript
+                .absorb_point(c)
+                .map_err(|_| return Error::TranscriptError)
+                .ok();
         }
 
         let x_3: C::Scalar = get_challenge_scalar(Challenge(transcript.squeeze().get_lower_128()));
