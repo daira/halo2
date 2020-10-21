@@ -149,11 +149,9 @@ impl<C: CurveAffine> Proof<C> {
             challenges_sq_packed.push(Challenge(challenge_sq_packed));
         }
 
-        let delta = self.delta;
-
         // Feed delta into the transcript
         transcript
-            .absorb_point(&delta)
+            .absorb_point(&self.delta)
             .map_err(|_| Error::OpeningError)?;
 
         // Get the challenge `c`
