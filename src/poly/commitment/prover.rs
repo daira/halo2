@@ -98,12 +98,10 @@ impl<C: CurveAffine> Proof<C> {
                 // We expect these to not be points at infinity due to the randomness.
                 transcript
                     .absorb_point(&l)
-                    .map_err(|_| return Error::SamplingError)
-                    .ok();
+                    .map_err(|_| Error::SamplingError)?;
                 transcript
                     .absorb_point(&r)
-                    .map_err(|_| return Error::SamplingError)
-                    .ok();
+                    .map_err(|_| Error::SamplingError)?;
 
                 // ... and get the squared challenge.
                 let challenge_sq_packed = transcript.squeeze().get_lower_128();
@@ -129,12 +127,10 @@ impl<C: CurveAffine> Proof<C> {
             // Feed L and R into the real transcript
             transcript
                 .absorb_point(&l)
-                .map_err(|_| return Error::SamplingError)
-                .ok();
+                .map_err(|_| Error::SamplingError)?;
             transcript
                 .absorb_point(&r)
-                .map_err(|_| return Error::SamplingError)
-                .ok();
+                .map_err(|_| Error::SamplingError)?;
 
             // And obtain the challenge, even though we already have it, since
             // squeezing affects the transcript.
@@ -182,8 +178,7 @@ impl<C: CurveAffine> Proof<C> {
         // Feed delta into the transcript
         transcript
             .absorb_point(&delta)
-            .map_err(|_| return Error::SamplingError)
-            .ok();
+            .map_err(|_| Error::SamplingError)?;
 
         // Obtain the challenge c.
         let c_packed = transcript.squeeze().get_lower_128();
