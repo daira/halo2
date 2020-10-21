@@ -87,10 +87,6 @@ impl<'a, C: CurveAffine> Proof<C> {
             transcript.absorb_scalar(*eval);
         }
 
-        let transcript_scalar_point =
-            C::Base::from_bytes(&(transcript_scalar.squeeze()).to_bytes()).unwrap();
-        transcript.absorb(transcript_scalar_point);
-
         let mut queries: Vec<VerifierQuery<'a, C>> = Vec::new();
 
         for (query_index, &(wire, at)) in vk.cs.advice_queries.iter().enumerate() {
@@ -184,13 +180,7 @@ impl<'a, C: CurveAffine> Proof<C> {
         // We are now convinced the circuit is satisfied so long as the
         // polynomial commitments open to the correct values.
         self.multiopening
-            .verify(
-                params,
-                &mut transcript,
-                &mut transcript_scalar,
-                queries,
-                msm,
-            )
+            .verify(params, &mut transcript, queries, msm)
             .map_err(|_| Error::OpeningError)
     }
 

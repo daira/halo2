@@ -458,10 +458,6 @@ impl<C: CurveAffine> Proof<C> {
             transcript.absorb_scalar(*eval);
         }
 
-        let transcript_scalar_point =
-            C::Base::from_bytes(&(transcript_scalar.squeeze()).to_bytes()).unwrap();
-        transcript.absorb(transcript_scalar_point);
-
         let mut instances: Vec<ProverQuery<C>> = Vec::new();
 
         for (query_index, &(wire, at)) in pk.vk.cs.advice_queries.iter().enumerate() {
@@ -555,9 +551,8 @@ impl<C: CurveAffine> Proof<C> {
             }
         }
 
-        let multiopening =
-            multiopen::Proof::create(params, &mut transcript, &mut transcript_scalar, instances)
-                .map_err(|_| Error::OpeningError)?;
+        let multiopening = multiopen::Proof::create(params, &mut transcript, instances)
+            .map_err(|_| Error::OpeningError)?;
 
         Ok(Proof {
             advice_commitments,
