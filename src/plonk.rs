@@ -103,6 +103,7 @@ type ChallengeX<F> = ChallengeScalar<F, X>;
 #[test]
 fn test_proving() {
     use crate::arithmetic::{Curve, FieldExt};
+    use crate::dev::MockProver;
     use crate::pasta::{EqAffine, Fp, Fq};
     use crate::poly::commitment::{Blind, Params};
     use crate::transcript::{DummyHashRead, DummyHashWrite};
@@ -445,6 +446,13 @@ fn test_proving() {
     let pubinput = params
         .commit_lagrange(&pubinputs, Blind::default())
         .to_affine();
+
+    // Check this circuit is satisfied.
+    let prover = match MockProver::run(K, &circuit, vec![pubinputs.clone()]) {
+        Ok(prover) => prover,
+        Err(e) => panic!("{:?}", e),
+    };
+    assert_eq!(prover.verify(), Ok(()));
 
     for _ in 0..100 {
         let mut transcript = DummyHashWrite::init(vec![], Fq::one());
