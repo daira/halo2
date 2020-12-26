@@ -14,5 +14,5 @@ will be parameterized on a chip, and can use any features of the supported cores
 Our hope is that less expert users will normally be able to find an existing chip that
 supports the operations they need, or only have to make minor modifications to an existing
 chip. Expert users will have full control to do the kind of
-[circuit optimizations](https://zips.z.cash/protocol/canopy.pdf#circuitdesign)
-[that ECC is famous  for](https://electriccoin.co/blog/cultivating-sapling-faster-zksnarks/) 🙂.
+[circuit optimizations](https://zips.z.cash/protocol/protocol.pdf#circuitdesign)
+[that ECC is famous for](https://electriccoin.co/blog/cultivating-sapling-faster-zksnarks/) 🙂.
