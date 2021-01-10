@@ -2,10 +2,10 @@
 //! code that generalizes over a pair of fields.
 
 use core::mem::size_of;
+use derivative::Derivative;
 use static_assertions::const_assert;
 use std::assert;
 use std::convert::TryInto;
-use std::marker::PhantomData;
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
 use super::Group;
@@ -200,25 +200,12 @@ pub trait FieldExt:
     }
 }
 
-/// Parameters for a perfect hash function used in square root computation.
-#[derive(Debug)]
-struct SqrtHasher<F: FieldExt> {
-    hash_xor: u32,
-    hash_mod: usize,
-    marker: PhantomData<F>,
-}
-
-impl<F: FieldExt> SqrtHasher<F> {
-    /// Returns a perfect hash of x for use with SqrtTables::inv.
-    fn hash(&self, x: &F) -> usize {
-        ((x.get_lower_32() ^ self.hash_xor) as usize) % self.hash_mod
-    }
-}
-
 /// Tables used for square root computation.
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct SqrtTables<F: FieldExt> {
-    hasher: SqrtHasher<F>,
+    #[derivative(Debug = "ignore")]
+    hasher: Box<dyn Fn(&F) -> usize + 'static + Sync>,
     inv: Vec<u8>,
     g0: [F; 256],
     g1: [F; 256],
@@ -229,11 +216,7 @@ pub struct SqrtTables<F: FieldExt> {
 impl<F: FieldExt> SqrtTables<F> {
     /// Build tables given parameters for the perfect hash.
     pub fn init(hash_xor: u32, hash_mod: usize) -> Self {
-        let hasher = SqrtHasher {
-            hash_xor,
-            hash_mod,
-            marker: PhantomData,
-        };
+        let hasher = Box::new(move |x: &F| ((x.get_lower_32() ^ hash_xor) as usize) % hash_mod);
 
         let gtab: Vec<Vec<F>> = (0..4)
             .scan(F::ROOT_OF_UNITY, |gi, _| {
@@ -253,7 +236,7 @@ impl<F: FieldExt> SqrtTables<F> {
         // Now invert gtab[3].
         let mut inv: Vec<u8> = vec![1; hash_mod];
         for j in 0..256 {
-            let hash = hasher.hash(&gtab[3][j]);
+            let hash = hasher(&gtab[3][j]);
             // 1 is the last value to be assigned, so this ensures there are no collisions.
             assert!(inv[hash] == 1);
             inv[hash] = ((256 - j) & 0xFF) as u8;
@@ -332,7 +315,7 @@ impl<F: FieldExt> SqrtTables<F> {
     /// The choice of root from sqrt is unspecified.
     fn sqrt_common(&self, num: &F, div: &F, uv: &F, v: &F) -> (Choice, F) {
         let sqr = |x: F, i: u32| (0..i).fold(x, |x, _| x.square());
-        let inv = |x: F| self.inv[self.hasher.hash(&x)] as usize;
+        let inv = |x: F| self.inv[(*self.hasher)(&x)] as usize;
 
         let x3 = *uv * v;
         let x2 = sqr(x3, 8);
