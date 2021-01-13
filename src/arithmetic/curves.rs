@@ -9,7 +9,7 @@ use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 use super::{FieldExt, Group};
 
 /// This trait is a common interface for dealing with elements of an elliptic
-/// curve group in the "projective" form, where that arithmetic is usually more
+/// curve group in a "projective" form, where that arithmetic is usually more
 /// efficient.
 pub trait Curve:
     Sized
@@ -58,7 +58,7 @@ pub trait Curve:
     /// Obtains the additive identity.
     fn zero() -> Self;
 
-    /// Obtains the base point of the curve.
+    /// Obtains the base point of the curve, if defined.
     fn one() -> Self;
 
     /// Doubles this element.
@@ -74,6 +74,9 @@ pub trait Curve:
     /// Converts this element into its affine form.
     fn to_affine(&self) -> Self::Affine;
 
+    /// Return the Jacobian coordinates of this point.
+    fn jacobian_coordinates(&self) -> (Self::Base, Self::Base, Self::Base);
+
     /// Returns whether or not this element is on the curve; should
     /// always be true unless an "unchecked" API was used.
     fn is_on_curve(&self) -> Choice;
@@ -82,8 +85,15 @@ pub trait Curve:
     /// sizes of the slices are different.
     fn batch_to_affine(v: &[Self], target: &mut [Self::Affine]);
 
-    /// Returns the curve constant b
+    /// Returns the curve constant a.
+    fn a() -> Self::Base;
+
+    /// Returns the curve constant b.
     fn b() -> Self::Base;
+
+    /// Obtains a point given Jacobian coordinates $X : Y : Z$, failing
+    /// if the coordinates are not on the curve.
+    fn new_jacobian(x: Self::Base, y: Self::Base, z: Self::Base) -> CtOption<Self>;
 }
 
 /// This trait is the affine counterpart to `Curve` and is used for
@@ -129,7 +139,7 @@ pub trait CurveAffine:
     /// Obtains the additive identity.
     fn zero() -> Self;
 
-    /// Obtains the base point of the curve.
+    /// Obtains the base point of the curve, if defined.
     fn one() -> Self;
 
     /// Returns whether or not this element is the identity.
@@ -165,6 +175,9 @@ pub trait CurveAffine:
     /// element.
     fn to_bytes_wide(&self) -> [u8; 64];
 
-    /// Returns the curve constant $b$
+    /// Returns the curve constant $a$.
+    fn a() -> Self::Base;
+
+    /// Returns the curve constant $b$.
     fn b() -> Self::Base;
 }

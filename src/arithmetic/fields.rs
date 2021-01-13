@@ -59,6 +59,12 @@ pub trait FieldExt:
         Self::sqrt_ratio(self, &Self::one())
     }
 
+    /// Return a square root of this field element in a CtOption iff it exists.
+    fn sqrt_orig(&self) -> CtOption<Self> {
+        let (is_square, res) = self.sqrt_alt();
+        CtOption::new(res, is_square)
+    }
+
     /// This computes a random element of the field using system randomness.
     fn rand() -> Self {
         Self::random(rand::rngs::OsRng)
@@ -291,7 +297,7 @@ impl<F: FieldExt> SqrtTables<F> {
         (is_square, res)
     }
 
-    /// Common part of sqrt_ratio and sqrt_alt: return res given v = u^((T-1)/2) and uv = u * v.
+    /// Common part of sqrt_ratio and sqrt_alt: return their result given v = u^((T-1)/2) and uv = u * v.
     fn sqrt_common(&self, uv: &F, v: &F) -> F {
         let sqr = |x: F, i: u32| (0..i).fold(x, |x, _| x.square());
         let inv = |x: F| self.inv[self.hasher.hash(&x)] as usize;
