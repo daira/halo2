@@ -136,6 +136,9 @@ pub trait CurveAffine:
     /// random string.
     const BLAKE2B_PERSONALIZATION: &'static [u8; 16];
 
+    /// CURVE_ID used for hash-to-curve.
+    const CURVE_ID: &'static str;
+
     /// Obtains the additive identity.
     fn zero() -> Self;
 

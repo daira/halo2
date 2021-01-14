@@ -2,9 +2,8 @@
 
 use lazy_static::lazy_static;
 
-use super::{Eq, EqAffine, Fq, Fp, IsoEq, IsoEqAffine};
+use super::{Eq, EqAffine, Fp, Fq, IsoEq, IsoEqAffine};
 use crate::arithmetic::{FieldExt, SimplifiedSWUWithDegree3Isogeny};
-
 
 /// The base field of the Vesta and iso-Vesta curves.
 pub type Base = Fq;
@@ -115,7 +114,7 @@ lazy_static! {
 
 #[test]
 fn test_map_to_curve_vesta() {
-    use crate::arithmetic::{HashToCurve, CurveAffine};
+    use crate::arithmetic::{CurveAffine, HashToCurve};
 
     assert!(MAP_VESTA.minus_b_over_a * IsoAffine::a() == -IsoAffine::b());
     assert!(MAP_VESTA.b_over_za * MAP_VESTA.z * IsoAffine::a() == IsoAffine::b());

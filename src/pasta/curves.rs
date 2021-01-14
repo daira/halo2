@@ -11,7 +11,8 @@ use super::{Fp, Fq};
 use crate::arithmetic::{Curve, CurveAffine, FieldExt, Group};
 
 macro_rules! new_curve_impl {
-    ($name:ident, $name_affine:ident, $base:ident, $scalar:ident, $blake2b_personalization:literal, $a_raw:expr, $b_raw:expr, $curve_type:ident) => {
+    ($name:ident, $name_affine:ident, $base:ident, $scalar:ident, $blake2b_personalization:literal,
+     $curve_id:literal, $a_raw:expr, $b_raw:expr, $curve_type:ident) => {
         /// Represents a point in the projective coordinate space.
         #[derive(Copy, Clone, Debug)]
         pub struct $name {
@@ -466,6 +467,7 @@ macro_rules! new_curve_impl {
             type Base = $base;
 
             const BLAKE2B_PERSONALIZATION: &'static [u8; 16] = $blake2b_personalization;
+            const CURVE_ID: &'static str = $curve_id;
 
             impl_affine_curve_specific!($name, $base, $curve_type);
 
@@ -789,6 +791,7 @@ new_curve_impl!(
     Fp,
     Fq,
     b"halo2_____pallas",
+    "pallas",
     [0, 0, 0, 0],
     [5, 0, 0, 0],
     special_a0_b5
@@ -799,6 +802,7 @@ new_curve_impl!(
     Fq,
     Fp,
     b"halo2______vesta",
+    "vesta",
     [0, 0, 0, 0],
     [5, 0, 0, 0],
     special_a0_b5
@@ -809,6 +813,7 @@ new_curve_impl!(
     Fp,
     Fq,
     b"halo2_iso_pallas",
+    "iso-pallas",
     [
         0x92bb4b0b657a014b,
         0xb74134581a27a59f,
@@ -824,6 +829,7 @@ new_curve_impl!(
     Fq,
     Fp,
     b"halo2__iso_vesta",
+    "iso-vesta",
     [
         0xc515ad7242eaa6b1,
         0x9673928c7d01b212,

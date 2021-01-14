@@ -5,7 +5,6 @@ use lazy_static::lazy_static;
 use super::{Ep, EpAffine, Fp, Fq, IsoEp, IsoEpAffine};
 use crate::arithmetic::{FieldExt, SimplifiedSWUWithDegree3Isogeny};
 
-
 /// The base field of the Pallas and iso-Pallas curves.
 pub type Base = Fp;
 
@@ -114,8 +113,38 @@ lazy_static! {
 }
 
 #[test]
+fn test_iso_map() {
+    use crate::arithmetic::{Curve, HashToCurve};
+
+    // This is a regression test (in case you were wondering where this weird point comes from).
+    let r = IsoPoint::new_jacobian(
+        Base::from_raw([
+            0xc37f111df5c4419e,
+            0x593c053e5e2337ad,
+            0x9c6cfc47bce1aba6,
+            0x0a881e4d556945aa,
+        ]),
+        Base::from_raw([
+            0xf234e04434502b47,
+            0x6979f7f2b0acf188,
+            0xa62eec46f662cb4e,
+            0x035e5c8a06d5cfb4,
+        ]),
+        Base::from_raw([
+            0x11ab791d4fb6f6b4,
+            0x575baa717958ef1f,
+            0x6ac4e343558dcbf3,
+            0x3af37975b0933125,
+        ]),
+    )
+    .unwrap();
+    println!("{:?}", r);
+    let p = MAP_PALLAS.iso_map(&r);
+}
+
+#[test]
 fn test_map_to_curve_pallas() {
-    use crate::arithmetic::{HashToCurve, CurveAffine};
+    use crate::arithmetic::{CurveAffine, HashToCurve, Shake128};
 
     assert!(MAP_PALLAS.minus_b_over_a * IsoAffine::a() == -IsoAffine::b());
     assert!(MAP_PALLAS.b_over_za * MAP_PALLAS.z * IsoAffine::a() == IsoAffine::b());
@@ -123,6 +152,11 @@ fn test_map_to_curve_pallas() {
 
     //let p = MAP_PALLAS.map_to_curve(&Base::zero());
 
-    let p = MAP_PALLAS.map_to_curve(&Base::one());
-    //println!("{:?}", p);
+    for i in 1..100 {
+        let p = MAP_PALLAS.map_to_curve(&Base::from(i));
+        println!("{:?}", p);
+    }
+
+    let hash = MAP_PALLAS.hash_to_curve("z.cash:test", Shake128::default());
+    println!("{:?}", hash(b"hello"));
 }
