@@ -350,5 +350,5 @@ fn main() {
         .titled("Example Circuit Layout", ("sans-serif", 60))
         .unwrap();
 
-    CircuitLayout::default().render(&circuit, &root).unwrap();
+    CircuitLayout::default().render(1 << 5, &circuit, &root).unwrap();
 }
