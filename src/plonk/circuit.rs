@@ -535,13 +535,13 @@ pub trait Circuit<F: Field> {
     fn synthesize(&self, config: Self::Config, layouter: impl Layouter<F>) -> Result<(), Error>;
 }
 
-/// Low-degree expression representing an identity that must hold over the committed columns.
+/// A low-degree polynomial expression. This can be used to construct an identity that
+/// must hold over the committed columns. This type specifically represents an expression
+/// that does not involve any virtual selectors.
 #[derive(Clone, Debug)]
 pub enum Expression<F> {
     /// This is a constant polynomial
     Constant(F),
-    /// This is a virtual selector
-    Selector(Selector),
     /// This is a fixed column queried at a certain relative location
     Fixed {
         /// Query index
@@ -583,7 +583,6 @@ impl<F: Field> Expression<F> {
     pub fn evaluate<T>(
         &self,
         constant: &impl Fn(F) -> T,
-        selector_column: &impl Fn(Selector) -> T,
         fixed_column: &impl Fn(usize, usize, Rotation) -> T,
         advice_column: &impl Fn(usize, usize, Rotation) -> T,
         instance_column: &impl Fn(usize, usize, Rotation) -> T,
@@ -593,7 +592,6 @@ impl<F: Field> Expression<F> {
     ) -> T {
         match self {
             Expression::Constant(scalar) => constant(*scalar),
-            Expression::Selector(selector) => selector_column(*selector),
             Expression::Fixed {
                 query_index,
                 column_index,
@@ -612,7 +610,6 @@ impl<F: Field> Expression<F> {
             Expression::Sum(a, b) => {
                 let a = a.evaluate(
                     constant,
-                    selector_column,
                     fixed_column,
                     advice_column,
                     instance_column,
@@ -622,7 +619,6 @@ impl<F: Field> Expression<F> {
                 );
                 let b = b.evaluate(
                     constant,
-                    selector_column,
                     fixed_column,
                     advice_column,
                     instance_column,
@@ -635,7 +631,6 @@ impl<F: Field> Expression<F> {
             Expression::Product(a, b) => {
                 let a = a.evaluate(
                     constant,
-                    selector_column,
                     fixed_column,
                     advice_column,
                     instance_column,
@@ -645,7 +640,6 @@ impl<F: Field> Expression<F> {
                 );
                 let b = b.evaluate(
                     constant,
-                    selector_column,
                     fixed_column,
                     advice_column,
                     instance_column,
@@ -658,7 +652,6 @@ impl<F: Field> Expression<F> {
             Expression::Scaled(a, f) => {
                 let a = a.evaluate(
                     constant,
-                    selector_column,
                     fixed_column,
                     advice_column,
                     instance_column,
@@ -671,11 +664,10 @@ impl<F: Field> Expression<F> {
         }
     }
 
-    /// Compute the degree of this polynomial
+    /// Compute the degree of this polynomial.
     pub fn degree(&self) -> usize {
         match self {
             Expression::Constant(_) => 0,
-            Expression::Selector(_) => 1,
             Expression::Fixed { .. } => 1,
             Expression::Advice { .. } => 1,
             Expression::Instance { .. } => 1,
@@ -690,18 +682,8 @@ impl<F: Field> Expression<F> {
         self.clone() * self
     }
 
-    /// Returns whether or not this expression contains a `Selector`.
-    fn contains_selector(&self) -> bool {
-        self.evaluate(
-            &|_| false,
-            &|_| true,
-            &|_, _, _| false,
-            &|_, _, _| false,
-            &|_, _, _| false,
-            &|a, b| a || b,
-            &|a, b| a || b,
-            &|a, _| a,
-        )
+    pub fn select(self, selector: Selector) -> SelectedExpression<F> {
+        SelectedExpression::new(selector, self)
     }
 }
 
@@ -715,9 +697,6 @@ impl<F: Field> Neg for Expression<F> {
 impl<F: Field> Add for Expression<F> {
     type Output = Expression<F>;
     fn add(self, rhs: Expression<F>) -> Expression<F> {
-        if self.contains_selector() || rhs.contains_selector() {
-            panic!("attempted to add to a selector");
-        }
         Expression::Sum(Box::new(self), Box::new(rhs))
     }
 }
@@ -725,9 +704,6 @@ impl<F: Field> Add for Expression<F> {
 impl<F: Field> Sub for Expression<F> {
     type Output = Expression<F>;
     fn sub(self, rhs: Expression<F>) -> Expression<F> {
-        if self.contains_selector() || rhs.contains_selector() {
-            panic!("attempted to add to a selector");
-        }
         Expression::Sum(Box::new(self), Box::new(-rhs))
     }
 }
@@ -735,9 +711,6 @@ impl<F: Field> Sub for Expression<F> {
 impl<F: Field> Mul for Expression<F> {
     type Output = Expression<F>;
     fn mul(self, rhs: Expression<F>) -> Expression<F> {
-        if self.contains_selector() && rhs.contains_selector() {
-            panic!("attempted to multiply two selectors");
-        }
         Expression::Product(Box::new(self), Box::new(rhs))
     }
 }
@@ -746,6 +719,68 @@ impl<F: Field> Mul<F> for Expression<F> {
     type Output = Expression<F>;
     fn mul(self, rhs: F) -> Expression<F> {
         Expression::Scaled(Box::new(self), rhs)
+    }
+}
+
+/// Represents a polynomial expression that is the product of a virtual selector
+/// and another expression not involving virtual selectors.
+#[derive(Clone, Debug)]
+pub struct SelectedExpression<F> {
+    // The None case is used when we've replaced the selector by a fixed column.
+    selector: Option<Selector>,
+    expr: Box<Expression<F>>,
+}
+
+impl<F: Field> SelectedExpression<F> {
+    /// Evaluate the polynomial using the provided closures to perform the
+    /// operations.
+    pub fn evaluate<T>(
+        &self,
+        constant: &impl Fn(F) -> T,
+        selector_column: &impl Fn(Selector) -> T,
+        fixed_column: &impl Fn(usize, usize, Rotation) -> T,
+        advice_column: &impl Fn(usize, usize, Rotation) -> T,
+        instance_column: &impl Fn(usize, usize, Rotation) -> T,
+        sum: &impl Fn(T, T) -> T,
+        product: &impl Fn(T, T) -> T,
+        scaled: &impl Fn(T, F) -> T,
+    ) -> T {
+        let b = self.expr.evaluate(
+            constant,
+            fixed_column,
+            advice_column,
+            instance_column,
+            sum,
+            product,
+            scaled,
+        );
+        if let Some(s) = self.selector {
+            product(selector_column(s), b)
+        } else {
+            b
+        }
+    }
+
+    /// Compute the degree of this polynomial.
+    pub fn degree(&self) -> usize {
+        self.expr.degree() + if self.selector.is_some() { 1 } else { 0 }
+    }
+
+    /// Create a `SelectedExpression` representing `selector * expr`.
+    pub fn new(selector: Selector, expr: Expression<F>) -> Self {
+        Self {
+            selector: Some(selector),
+            expr: Box::new(expr),
+        }
+    }
+
+    // We don't expose this outside the crate, so that we can be guaranteed that
+    // it's only created by substituting a fixed column in place of the selector.
+    pub(crate) fn wrap(expr: Expression<F>) -> Self {
+        Self {
+            selector: None,
+            expr: Box::new(expr),
+        }
     }
 }
 
@@ -777,23 +812,23 @@ impl<Col: Into<Column<Any>>> From<(Col, Rotation)> for VirtualCell {
 #[derive(Debug)]
 pub struct Constraint<F: Field> {
     name: &'static str,
-    poly: Expression<F>,
+    poly: SelectedExpression<F>,
 }
 
-impl<F: Field> From<Expression<F>> for Constraint<F> {
-    fn from(poly: Expression<F>) -> Self {
+impl<F: Field> From<SelectedExpression<F>> for Constraint<F> {
+    fn from(poly: SelectedExpression<F>) -> Self {
         Constraint { name: "", poly }
     }
 }
 
-impl<F: Field> From<(&'static str, Expression<F>)> for Constraint<F> {
-    fn from((name, poly): (&'static str, Expression<F>)) -> Self {
+impl<F: Field> From<(&'static str, SelectedExpression<F>)> for Constraint<F> {
+    fn from((name, poly): (&'static str, SelectedExpression<F>)) -> Self {
         Constraint { name, poly }
     }
 }
 
-impl<F: Field> From<Expression<F>> for Vec<Constraint<F>> {
-    fn from(poly: Expression<F>) -> Self {
+impl<F: Field> From<SelectedExpression<F>> for Vec<Constraint<F>> {
+    fn from(poly: SelectedExpression<F>) -> Self {
         vec![Constraint { name: "", poly }]
     }
 }
@@ -802,10 +837,7 @@ impl<F: Field> From<Expression<F>> for Vec<Constraint<F>> {
 pub(crate) struct Gate<F: Field> {
     name: &'static str,
     constraint_names: Vec<&'static str>,
-    polys: Vec<Expression<F>>,
-    /// We track queried selectors separately from other cells, so that we can use them to
-    /// trigger debug checks on gates.
-    queried_selectors: Vec<Selector>,
+    polys: Vec<SelectedExpression<F>>,
     queried_cells: Vec<VirtualCell>,
 }
 
@@ -818,12 +850,20 @@ impl<F: Field> Gate<F> {
         self.constraint_names[constraint_index]
     }
 
-    pub(crate) fn polynomials(&self) -> &[Expression<F>] {
+    pub(crate) fn polynomials(&self) -> &[SelectedExpression<F>] {
         &self.polys
     }
 
     pub(crate) fn queried_selectors(&self) -> &[Selector] {
-        &self.queried_selectors
+        &self
+            .polys
+            .iter()
+            .map(|e| {
+                e.selector
+                    .expect("queried_selectors cannot be called on an optimized Gate")
+            })
+            .collect::<Vec<_>>()
+            .as_slice()
     }
 
     pub(crate) fn queried_cells(&self) -> &[VirtualCell] {
@@ -1090,7 +1130,6 @@ impl<F: Field> ConstraintSystem<F> {
     ) {
         let mut cells = VirtualCells::new(self);
         let constraints = constraints(&mut cells);
-        let queried_selectors = cells.queried_selectors;
         let queried_cells = cells.queried_cells;
 
         let (constraint_names, polys): (_, Vec<_>) = constraints
@@ -1108,7 +1147,6 @@ impl<F: Field> ConstraintSystem<F> {
             name,
             constraint_names,
             polys,
-            queried_selectors,
             queried_cells,
         });
     }
@@ -1145,54 +1183,29 @@ impl<F: Field> ConstraintSystem<F> {
             })
             .collect();
 
-        fn replace_selectors<F: Field>(
-            expr: &mut Expression<F>,
+        fn replace_selector<F: Field>(
+            expr: &SelectedExpression<F>,
             selector_map: &[Column<Fixed>],
             selector_queries: &[usize],
-        ) {
-            *expr = expr.evaluate(
-                &|constant| Expression::Constant(constant),
-                &|selector| Expression::Fixed {
-                    query_index: selector_queries[selector.0],
-                    column_index: selector_map[selector.0].index(),
-                    rotation: Rotation::cur(),
-                },
-                &|query_index, column_index, rotation| Expression::Fixed {
-                    query_index,
-                    column_index,
-                    rotation,
-                },
-                &|query_index, column_index, rotation| Expression::Advice {
-                    query_index,
-                    column_index,
-                    rotation,
-                },
-                &|query_index, column_index, rotation| Expression::Instance {
-                    query_index,
-                    column_index,
-                    rotation,
-                },
-                &|a, b| a + b,
-                &|a, b| a * b,
-                &|a, f| a * f,
-            );
+        ) -> Expression<F> {
+            let selector = expr
+                .selector
+                .expect("selector must not have already been replaced");
+            *(expr.expr) * Expression::Fixed {
+                query_index: selector_queries[selector.0],
+                column_index: selector_map[selector.0].index(),
+                rotation: Rotation::cur(),
+            }
         }
 
-        // Substitute selectors for the real fixed columns in all gates
+        // Substitute selector for the real fixed column in all gates
         for expr in self.gates.iter_mut().flat_map(|gate| gate.polys.iter_mut()) {
-            replace_selectors(expr, &self.selector_map, &queries);
+            replace_selector(expr, &self.selector_map, &queries);
         }
 
-        // Substitute selectors for the real fixed columns in all lookup
-        // expressions
-        for expr in self.lookups.iter_mut().flat_map(|lookup| {
-            lookup
-                .input_expressions
-                .iter_mut()
-                .chain(lookup.table_expressions.iter_mut())
-        }) {
-            replace_selectors(expr, &self.selector_map, &queries);
-        }
+        // We don't have to substitute input or table expressions in lookups,
+        // because they are Expressions and therefore don't contain any virtual
+        // selectors.
 
         (self, polys)
     }
@@ -1314,7 +1327,6 @@ impl<F: Field> ConstraintSystem<F> {
 #[derive(Debug)]
 pub struct VirtualCells<'a, F: Field> {
     meta: &'a mut ConstraintSystem<F>,
-    queried_selectors: Vec<Selector>,
     queried_cells: Vec<VirtualCell>,
 }
 
@@ -1322,15 +1334,8 @@ impl<'a, F: Field> VirtualCells<'a, F> {
     fn new(meta: &'a mut ConstraintSystem<F>) -> Self {
         VirtualCells {
             meta,
-            queried_selectors: vec![],
             queried_cells: vec![],
         }
-    }
-
-    /// Query a selector at the current position.
-    pub fn query_selector(&mut self, selector: Selector) -> Expression<F> {
-        self.queried_selectors.push(selector);
-        Expression::Selector(selector)
     }
 
     /// Query a fixed column at a relative position

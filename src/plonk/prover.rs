@@ -435,7 +435,6 @@ pub fn create_proof<
                         gate.polynomials().iter().map(move |poly| {
                             poly.evaluate(
                                 &|scalar| pk.vk.domain.constant_extended(scalar),
-                                &|_| panic!("virtual selectors are removed during optimization"),
                                 &|_, column_index, rotation| {
                                     pk.vk
                                         .domain

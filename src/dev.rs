@@ -650,7 +650,6 @@ impl<F: FieldExt> MockProver<F> {
                         gate.polynomials().iter().enumerate().filter_map(
                             move |(poly_index, poly)| match poly.evaluate(
                                 &|scalar| Value::Real(scalar),
-                                &|_| panic!("virtual selectors are removed during optimization"),
                                 &load(n, row, &self.cs.fixed_queries, &self.fixed),
                                 &load(n, row, &self.cs.advice_queries, &self.advice),
                                 &load_instance(n, row, &self.cs.instance_queries, &self.instance),
@@ -691,7 +690,6 @@ impl<F: FieldExt> MockProver<F> {
                     let load = |expression: &Expression<F>, row| {
                         expression.evaluate(
                             &|scalar| Value::Real(scalar),
-                            &|_| panic!("virtual selectors are removed during optimization"),
                             &|index, _, _| {
                                 let query = self.cs.fixed_queries[index];
                                 let column_index = query.0.index();
