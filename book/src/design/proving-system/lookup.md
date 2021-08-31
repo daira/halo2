@@ -52,7 +52,7 @@ $$$$
 Z_{2^k} = Z_0 = 1.
 $$
 
-This is a version of the permutation argument which allows $A'$ and $S'$ to be
+This is a version of the permutation argument that allows $A'$ and $S'$ to be
 permutations of $A$ and $S,$ respectively, but doesn't specify the exact permutations.
 $\beta$ and $\gamma$ are separate challenges so that we can combine these two permutation
 arguments into one without worrying that they might interfere with each other.
@@ -61,9 +61,9 @@ The goal of these permutations is to allow $A'$ and $S'$ to be arranged by the p
 particular way:
 
 1. All the cells of column $A'$ are arranged so that like-valued cells are vertically
-   adjacent to each other. This could be done by some kind of sorting algorithm, but all
-   that matters is that like-valued cells are on consecutive rows in column $A',$ and that
-   $A'$ is a permutation of $A.$
+   adjacent to each other. This could be done by sorting, but all that matters is that
+   like-valued cells are on consecutive rows in column $A',$ and that $A'$ is a
+   permutation of $A.$
 2. The first row in a sequence of like values in $A'$ is the row that has the
    corresponding value in $S'.$ Apart from this constraint, $S'$ is any arbitrary
    permutation of $S.$
@@ -84,7 +84,7 @@ $$
 though $\omega^{-1} X$ "wraps", because of the second rule.)
 
 Together these constraints effectively force every element in $A'$ (and thus $A$) to equal
-at least one element in $S'$ (and thus $S$). Proof: by induction on prefixes of the rows.
+some element in $S'$ (and thus $S$). Proof: by induction on prefixes of the rows.
 
 ## Zero-knowledge adjustment
 

@@ -17,6 +17,7 @@
     - [Lookup argument](design/proving-system/lookup.md)
     - [Permutation argument](design/proving-system/permutation.md)
     - [Circuit commitments](design/proving-system/circuit-commitments.md)
+    - [Selector combining](design/proving-system/selector-combining.md)
     - [Vanishing argument](design/proving-system/vanishing.md)
     - [Multipoint opening argument](design/proving-system/multipoint-opening.md)
     - [Inner product argument](design/proving-system/inner-product.md)
