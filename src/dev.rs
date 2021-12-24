@@ -711,35 +711,69 @@ impl<F: FieldExt> MockProver<F> {
                         )
                     };
 
+                    let mut table_has_zeros = false;
+                    let table_zeros = vec![Value::Real(F::zero()); lookup.table_expressions.len()];
+
                     // In the real prover, the lookup expressions are never enforced on
                     // unusable rows, due to the (1 - (l_last(X) + l_blind(X))) term.
-                    let table: std::collections::BTreeSet<Vec<_>> = self
+                    let mut table: Vec<_> = self
                         .usable_rows
                         .clone()
-                        .map(|table_row| {
-                            lookup
+                        .filter_map(|table_row| {
+                            let t = lookup
                                 .table_expressions
                                 .iter()
                                 .map(move |c| load(c, table_row))
-                                .collect::<Vec<_>>()
+                                .collect::<Vec<_>>();
+
+                            if t != table_zeros {
+                                Some(t)
+                            } else {
+                                table_has_zeros = true;
+                                None
+                            }
                         })
                         .collect();
-                    self.usable_rows.clone().filter_map(move |input_row| {
-                        let inputs: Vec<_> = lookup
-                            .input_expressions
-                            .iter()
-                            .map(|c| load(c, input_row))
-                            .collect();
-                        let lookup_passes = table.contains(&inputs);
-                        if lookup_passes {
-                            None
-                        } else {
-                            Some(VerifyFailure::Lookup {
-                                lookup_index,
-                                row: input_row as usize,
-                            })
-                        }
-                    })
+                    table.sort_unstable();
+
+                    let input_zeros = vec![Value::Real(F::zero()); lookup.input_expressions.len()];
+
+                    let mut inputs: Vec<_> = self
+                        .usable_rows
+                        .clone()
+                        .filter_map(|input_row| {
+                            let t = lookup
+                                .input_expressions
+                                .iter()
+                                .map(move |c| load(c, input_row))
+                                .collect::<Vec<_>>();
+
+                            // Include zero rows in `inputs` only if `table` has no zero rows.
+                            if !table_has_zeros || t != input_zeros {
+                                Some(t)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    inputs.sort_unstable();
+
+                    let mut i = 0;
+                    inputs
+                        .iter()
+                        .enumerate()
+                        .filter_map(move |(row, input)| {
+                            while i < table.len() && &table[i] < input {
+                                i += 1;
+                            }
+                            if i == table.len() || &table[i] > input {
+                                assert!(table.binary_search(&input).is_err());
+                                Some(VerifyFailure::Lookup { lookup_index, row })
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
                 });
 
         // Check that permutations preserve the original values of the cells.
