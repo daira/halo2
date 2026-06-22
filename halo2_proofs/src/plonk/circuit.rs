@@ -1454,6 +1454,15 @@ impl<F: Field> ConstraintSystem<F> {
         factors + 1
     }
 
+    /// Returns the fixed columns that can be used to store constant values, as
+    /// declared via [`ConstraintSystem::enable_constant`]. These are the columns
+    /// that a [`FloorPlanner`] must be given to place constants.
+    ///
+    /// [`FloorPlanner`]: crate::circuit::FloorPlanner
+    pub fn constants(&self) -> &[Column<Fixed>] {
+        &self.constants
+    }
+
     /// Returns the minimum necessary rows that need to exist in order to
     /// account for e.g. blinding factors.
     pub fn minimum_rows(&self) -> usize {
